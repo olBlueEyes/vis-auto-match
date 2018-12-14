@@ -1,69 +1,51 @@
 -- list of operator pairs to be matched
-local operators = { ['<'] = '>', ['('] = ')', ['{'] = '}', ['['] = ']' }
+delimeters = { ['<'] = '>',
+              ['('] = ')',
+              ['{'] = '}',
+              ['['] = ']'
+}
 
--- to check if a pair has been inserted
+for k,v in pairs(delimeters) do
+	vis:map(vis.modes.INSERT, k, function()
+		inserted = false
+		vis:info(k)
+		vis:insert(k..v)
+		vis:feedkeys("<Left>")
+		inserted = true
+		return 1
+	end)
+	vis:map(vis.modes.INSERT, v, function()
+		local pos = vis.win.selection.pos
+		local file = vis.win.file
+		local curr_char = file:content(pos, 1)
+		if curr_char == v and inserted == true then
+			vis.win.selection.pos = pos + 1
+		else vis:insert(v)
+		end
+	end)
 
-
-local function tableKeyExists(t, key)
-	value = t[key]
-	return t[key] ~= nil -- returns true if set contains key
 end
 
-local function tableValueExists(t, val)
-	for key, value in pairs(t) do
-		if value == val then
-			return true
-		end
+function keyExistsIn(t, key)
+	return t[key] ~= nil
+end
+
+function valueExistsIn(t, value)
+	for _,v in pairs(t) do
+		if value == v then return true end
 	end
 	return false
 end
 
-
--- insert the balanced operator
-vis.events.subscribe(vis.events.INPUT, function(char)
-	local pos = vis.win.selection.pos
-	if tableKeyExists(operators, char) then
-		vis.win.file:insert(pos, char..operators[char])
-		vis.win.selection.pos = pos + 1
-		return true
-	else return false
+vis:map(vis.modes.INSERT, '<Backspace>', function()
+	vis:info("you typed a backspace")
+	local sel = vis.win.selection
+	local pos = sel.pos
+	local file = vis.win.file
+	local prev_char = file:content(pos-1, 1)
+	local curr_char = file:content(pos  , 1)
+	if valueExistsIn(delimeters, curr_char) and keyExistsIn(delimeters, prev_char) then
+		vis:feedkeys('<Delete><C-h>')
+	else vis:feedkeys('<C-h>')
 	end
 end)
-
-vis:map(vis.modes.INSERT, "<Backspace>", function(keys)
-	local pos = vis.win.selection.pos
-	local file = vis.win.file
-	current_char = file:content(pos, 1)
-	if pos >= 1 then
-		previous_char = file:content(pos-1, 1)
-	end
-	if tableValueExists(operators, current_char) and tableKeyExists(operators, previous_char) then
-		file:delete(pos-1, 2)
-		vis.win.selection.pos = pos - 1
-		return #keys
-	else
-		if pos <= 0 then
-			return #keys
-		end
-		file:delete(pos-1, 1)
-		vis.win.selection.pos = pos - 1
-		return #keys
-	end
-end)
-
-local action = vis:action_register("Unbalanced-insert", function(char)
-	local pos = vis.win.selection.pos
-	local file = vis.win.file
-	current_char = file:content(pos, 1)
-	if tableKeyExists(operators, char) and tableValueExists(operators, current_char) then
-		file:delete(pos, 1)
-		vis.win.selection.pos = pos
-	else
-		vis:insert(char)
-	end
-	return #char
-end, "Undo the automatic insertion of a matching operator")
-
--- for k,v in pairs(operators) do
-	-- vis:map(vis.modes.INSERT, k, action)
--- end
