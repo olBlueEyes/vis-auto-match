@@ -38,7 +38,6 @@ function valueExistsIn(t, value)
 end
 
 vis:map(vis.modes.INSERT, '<Backspace>', function()
-	vis:info("you typed a backspace")
 	local sel = vis.win.selection
 	local pos = sel.pos
 	local file = vis.win.file
